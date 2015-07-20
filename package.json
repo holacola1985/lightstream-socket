@@ -1,0 +1,24 @@
+{
+  "name": "lightstream-socket",
+  "version": "0.1.0",
+  "description": "client library to connect to lightstream-server",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lightstream-company/lightstream-socket.git"
+  },
+  "keywords": [
+    "realtime",
+    "bigdata",
+    "map"
+  ],
+  "author": "Franck Ernewein, Jérôme Avoustin",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lightstream-company/lightstream-socket/issues"
+  },
+  "homepage": "https://github.com/lightstream-company/lightstream-socket#readme"
+}
