@@ -2,6 +2,7 @@
 "use strict";
 
 var util = require('util');
+var assertAsync = require('./test_helper').assertAsync;
 require('mock-socket');
 window.WebSocket = MockSocket;
 
@@ -36,12 +37,29 @@ function setMockServer(url, items) {
     });
   });
 
-  new MockServer(MockServer.unresolvableURL);
-
   return mock_server;
+}
+
+function closeSocket(socket) {
+  socket.removeAllListeners('new_points');
+  socket.close();
+}
+
+function assertHistoryPoints(socket, done, clear, expected_count) {
+  expected_count = expected_count || 3;
+  return function assertions(points) {
+    clear();
+    function assert() {
+      points.should.have.length(expected_count);
+    }
+    assertAsync(assert, done);
+    closeSocket(socket);
+  };
 }
 
 module.exports = {
   buildTestableSocket: buildTestableSocket,
-  setMockServer: setMockServer
+  setMockServer: setMockServer,
+  closeSocket: closeSocket,
+  assertHistoryPoints: assertHistoryPoints
 };

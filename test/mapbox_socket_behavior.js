@@ -7,6 +7,8 @@ var chai = require('chai');
 var should = chai.should();
 var buildTestableSocket = require('./socket_helper').buildTestableSocket;
 var setMockServer = require('./socket_helper').setMockServer;
+var closeSocket = require('./socket_helper').closeSocket;
+var assertHistoryPoints = require('./socket_helper').assertHistoryPoints;
 
 var Socket = buildTestableSocket(require('../lib/MapboxSocket'));
 
@@ -35,11 +37,6 @@ describe('MapboxSocket behavior', function () {
       map_container);
   });
 
-  function closeSocket(socket, assertions) {
-    socket.removeListener('new_points', assertions);
-    socket.close();
-  }
-
   it('should attach a Leaflet map to socket, then load history points and subscribe to new points', function (done) {
     var socket = new Socket(url);
     var map = L.mapbox.map('map', 'mapbox.pirates')
@@ -50,19 +47,12 @@ describe('MapboxSocket behavior', function () {
     });
 
     var timeout;
-
-    function assertions(points) {
-      clearTimeout(timeout);
-      points.should.have.length(3);
-      closeSocket(socket, assertions);
-      done();
-    }
-
-    socket.on('new_points', assertions);
+    function clear() { clearTimeout(timeout); }
+    socket.on('new_points', assertHistoryPoints(socket, done, clear));
 
     socket.connect();
     timeout = setTimeout(function () {
-      closeSocket(socket, assertions);
+      closeSocket(socket);
       done(new Error('new_points event should have been called for bounding box initialized'));
     }, 30);
   });
@@ -73,18 +63,14 @@ describe('MapboxSocket behavior', function () {
       .setView([43.6, 3.91], 13);
 
     var timeout;
+    function clear() { clearTimeout(timeout); }
     var event_count = 1; // 1st occurrence : bounding_box_initialized, 2nd: bounding_box_changed
-    function assertions(points) {
+    socket.on('new_points', function (points) {
       if (event_count++ < 2) {
         return;
       }
-      clearTimeout(timeout);
-      points.should.have.length(2);
-      closeSocket(socket, assertions);
-      done();
-    }
-
-    socket.on('new_points', assertions);
+      assertHistoryPoints(socket, done, clear, 2)(points);
+    });
 
     socket.on('opened', function () {
       socket.attachMap(map);
@@ -93,7 +79,7 @@ describe('MapboxSocket behavior', function () {
 
     socket.connect();
     timeout = setTimeout(function () {
-      closeSocket(socket, assertions);
+      closeSocket(socket);
       done(new Error('new_points event should have been called for bounding box changed'));
     }, 500);
   });
@@ -106,19 +92,14 @@ describe('MapboxSocket behavior', function () {
       .setView([43.6, 3.91], 13);
 
     var timeout;
-    function assertions(points) {
-      clearTimeout(timeout);
-      points.should.have.length(3);
-      closeSocket(socket, assertions);
-      done();
-    }
+    function clear() { clearTimeout(timeout); }
 
     socket.on('opened', function closeServer() {
       socket.removeAllListeners('opened');
       socket.attachMap(map);
       socket.on('opened', function () {
         socket.isOpened().should.be.true;
-        socket.on('new_points', assertions);
+        socket.on('new_points', assertHistoryPoints(socket, done, clear));
       });
 
       mock_server.close();
@@ -126,7 +107,7 @@ describe('MapboxSocket behavior', function () {
 
     socket.connect();
     timeout = setTimeout(function () {
-      closeSocket(socket, assertions);
+      closeSocket(socket);
       done(new Error('new_points event should have been called'));
     }, 500);
   });

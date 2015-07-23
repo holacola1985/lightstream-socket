@@ -5,11 +5,11 @@
 
 var chai = require('chai');
 var should = chai.should();
+var assertAsync = require('./test_helper').assertAsync;
 var buildTestableSocket = require('./socket_helper').buildTestableSocket;
 var setMockServer = require('./socket_helper').setMockServer;
-
-require('mock-socket');
-window.WebSocket = MockSocket;
+var closeSocket = require('./socket_helper').closeSocket;
+var assertHistoryPoints = require('./socket_helper').assertHistoryPoints;
 
 var ConnectionError = require('../lib/ConnectionError');
 var Socket = buildTestableSocket(require('../lib/Socket'));
@@ -27,6 +27,7 @@ describe('Socket behavior', function () {
 
   beforeEach(function () {
     mock_server = setMockServer(url, items);
+    new MockServer(MockServer.unresolvableURL);
   });
 
   describe('Socket connect an reconnect', function () {
@@ -37,9 +38,11 @@ describe('Socket behavior', function () {
       var timeout;
       socket.on('opened', function () {
         clearTimeout(timeout);
-        socket.isOpened().should.be.true;
+        function assert() {
+          socket.isOpened().should.be.true;
+        }
+        assertAsync(assert, done);
         socket.close();
-        done();
       });
 
       socket.connect();
@@ -57,8 +60,10 @@ describe('Socket behavior', function () {
       var timeout;
       socket.on('error', function () {
         clearTimeout(timeout);
-        socket.isOpened().should.be.false;
-        done();
+        function assert() {
+          socket.isOpened().should.be.false;
+        }
+        assertAsync(assert, done);
       });
 
       socket.connect();
@@ -81,8 +86,10 @@ describe('Socket behavior', function () {
       var timeout;
       socket.on('error', function () {
         clearTimeout(timeout);
-        socket.isOpened().should.be.false;
-        done();
+        function assert() {
+          socket.isOpened().should.be.false;
+        }
+        assertAsync(assert, done);
       });
 
       socket.connect();
@@ -99,21 +106,23 @@ describe('Socket behavior', function () {
       });
 
       var retries = Socket.INFINITE_RETRIES;
-      var retry_interval = 100;
+      var retry_interval = 80;
       var socket = new Socket(url, retries, retry_interval);
 
       var timeout;
       socket.on('error', function (error) {
         clearTimeout(timeout);
-        socket.isOpened().should.be.false;
-        error.should.be.an.instanceof(ConnectionError);
-        done();
+        function assert() {
+          socket.isOpened().should.be.false;
+          error.should.be.an.instanceof(ConnectionError);
+        }
+        assertAsync(assert, done);
       });
 
       socket.connect();
       setTimeout(function () {
         socket.abort();
-      }, 430);
+      }, 350);
 
       timeout = setTimeout(function () {
         done(new Error('error event should have been called, after aborting'));
@@ -126,8 +135,10 @@ describe('Socket behavior', function () {
       var timeout;
       socket.on('closed', function () {
         clearTimeout(timeout);
-        socket.isOpened().should.be.false;
-        done();
+        function assert() {
+          socket.isOpened().should.be.false;
+        }
+        assertAsync(assert, done);
       });
       socket.on('opened', function () {
         socket.close();
@@ -148,11 +159,6 @@ describe('Socket behavior', function () {
       lon_max: 4.04
     };
 
-    function closeSocket(socket, assertions) {
-      socket.removeListener('new_points', assertions);
-      socket.close();
-    }
-
     it('should set a bounding box, then load history points and subscribe to new points', function (done) {
       var socket = new Socket(url);
 
@@ -161,18 +167,13 @@ describe('Socket behavior', function () {
       });
 
       var timeout;
-      function assertions(points) {
-        clearTimeout(timeout);
-        points.should.have.length(3);
-        closeSocket(socket, assertions);
-        done();
-      }
-      socket.on('new_points', assertions);
+      function clear() { clearTimeout(timeout); }
+      socket.on('new_points', assertHistoryPoints(socket, done, clear));
 
       socket.connect();
       timeout = setTimeout(function () {
-        closeSocket(socket, assertions);
-        done(new Error('new new_points event should have been called for bounding box initialized'));
+        closeSocket(socket);
+        done(new Error('new_points event should have been called for bounding box initialized'));
       }, 100);
     });
 
@@ -182,19 +183,12 @@ describe('Socket behavior', function () {
       var socket = new Socket(url, retries, retry_interval);
 
       var timeout;
+      function clear() { clearTimeout(timeout); }
       socket.on('opened', function closeServer() {
         socket.removeAllListeners('opened');
         socket.setBoundingBox(bounding_box);
         socket.on('opened', function () {
-          socket.isOpened().should.be.true;
-          function assertions(points) {
-            clearTimeout(timeout);
-            points.should.have.length(3);
-            closeSocket(socket, assertions);
-            done();
-          }
-
-          socket.on('new_points', assertions);
+          socket.on('new_points', assertHistoryPoints(socket, done, clear));
         });
 
         mock_server.close();
@@ -202,7 +196,7 @@ describe('Socket behavior', function () {
 
       socket.connect();
       timeout = setTimeout(function () {
-        closeSocket(socket, assertions);
+        closeSocket(socket);
         done(new Error('new_points event should have been called'));
       }, 500);
     });
