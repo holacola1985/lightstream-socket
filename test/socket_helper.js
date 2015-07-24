@@ -23,12 +23,13 @@ function buildTestableSocket(Socket) {
   return TestableSocket;
 }
 
-function setMockServer(url, items) {
+function setMockServer(url, items, spy) {
   var mock_server = new MockServer(url);
   mock_server.on('connection', function (server) {
     server.on('message', function (data) {
       var points = items;
       data = JSON.parse(data);
+      spy(data);
       if (data[0] == 'bounding_box_changed') {
         points = items.slice(0, -1);
       }
@@ -45,14 +46,10 @@ function closeSocket(socket) {
   socket.close();
 }
 
-function assertHistoryPoints(socket, done, clear, expected_count) {
-  expected_count = expected_count || 3;
+function assertHistoryPoints(socket, assert, done, clear) {
   return function assertions(points) {
     clear();
-    function assert() {
-      points.should.have.length(expected_count);
-    }
-    assertAsync(assert, done);
+    assertAsync(assert(points), done);
     closeSocket(socket);
   };
 }

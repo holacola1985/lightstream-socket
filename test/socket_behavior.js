@@ -5,6 +5,12 @@
 
 var chai = require('chai');
 var should = chai.should();
+var expect = chai.expect;
+var sinon = require('sinon');
+var sinon_chai = require('sinon-chai');
+chai.use(sinon_chai);
+chai.use(require('chai-things'));
+
 var assertAsync = require('./test_helper').assertAsync;
 var buildTestableSocket = require('./socket_helper').buildTestableSocket;
 var setMockServer = require('./socket_helper').setMockServer;
@@ -12,11 +18,12 @@ var closeSocket = require('./socket_helper').closeSocket;
 var assertHistoryPoints = require('./socket_helper').assertHistoryPoints;
 
 var ConnectionError = require('../lib/ConnectionError');
+var BadFormatError = require('../lib/BadFormatError');
 var Socket = buildTestableSocket(require('../lib/Socket'));
 
 describe('Socket behavior', function () {
   var url = 'ws://localhost/socket';
-  var mock_server;
+  var mock_server, spy;
   var items = [{
     geojson: {coordinates: [3.97, 43.58]}
   }, {
@@ -26,7 +33,8 @@ describe('Socket behavior', function () {
   }];
 
   beforeEach(function () {
-    mock_server = setMockServer(url, items);
+    spy = sinon.spy();
+    mock_server = setMockServer(url, items, spy);
     new MockServer(MockServer.unresolvableURL);
   });
 
@@ -41,6 +49,7 @@ describe('Socket behavior', function () {
         function assert() {
           socket.isOpened().should.be.true;
         }
+
         assertAsync(assert, done);
         socket.close();
       });
@@ -63,6 +72,7 @@ describe('Socket behavior', function () {
         function assert() {
           socket.isOpened().should.be.false;
         }
+
         assertAsync(assert, done);
       });
 
@@ -116,6 +126,7 @@ describe('Socket behavior', function () {
           socket.isOpened().should.be.false;
           error.should.be.an.instanceof(ConnectionError);
         }
+
         assertAsync(assert, done);
       });
 
@@ -152,12 +163,7 @@ describe('Socket behavior', function () {
   });
 
   describe('Set Bounding Box', function () {
-    var bounding_box = {
-      lat_min: 43.55,
-      lat_max: 43.65,
-      lon_min: 3.78,
-      lon_max: 4.04
-    };
+    var bounding_box = [3.78, 43.55, 4.04, 43.65];
 
     it('should set a bounding box, then load history points and subscribe to new points', function (done) {
       var socket = new Socket(url);
@@ -168,7 +174,15 @@ describe('Socket behavior', function () {
 
       var timeout;
       function clear() { clearTimeout(timeout); }
-      socket.on('new_points', assertHistoryPoints(socket, done, clear));
+
+      function assert(points) {
+        return function () {
+          spy.should.have.been.calledWith(["bounding_box_initialized", bounding_box]);
+          points.should.have.length(3);
+        }
+      }
+
+      socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
 
       socket.connect();
       timeout = setTimeout(function () {
@@ -184,11 +198,19 @@ describe('Socket behavior', function () {
 
       var timeout;
       function clear() { clearTimeout(timeout); }
-      socket.on('opened', function closeServer() {
+
+      socket.on('opened', function () {
         socket.removeAllListeners('opened');
         socket.setBoundingBox(bounding_box);
+
         socket.on('opened', function () {
-          socket.on('new_points', assertHistoryPoints(socket, done, clear));
+          function assert(points) {
+            return function () {
+              points.should.have.length(3);
+            }
+          }
+
+          socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
         });
 
         mock_server.close();

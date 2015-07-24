@@ -5,6 +5,10 @@
 
 var chai = require('chai');
 var should = chai.should();
+var sinon = require('sinon');
+var sinon_chai = require('sinon-chai');
+chai.use(sinon_chai);
+
 var buildTestableSocket = require('./socket_helper').buildTestableSocket;
 var setMockServer = require('./socket_helper').setMockServer;
 var closeSocket = require('./socket_helper').closeSocket;
@@ -19,7 +23,7 @@ L.mapbox.config.HTTPS_URL = 'https://api.tiles.mapbox.com/v4';
 
 describe('MapboxSocket behavior', function () {
   var url = 'ws://localhost/socket';
-  var mock_server;
+  var mock_server, spy;
   var items = [{
     geojson: {coordinates: [3.97, 43.58]}
   }, {
@@ -29,7 +33,8 @@ describe('MapboxSocket behavior', function () {
   }];
 
   beforeEach(function () {
-    mock_server = setMockServer(url, items);
+    spy = sinon.spy();
+    mock_server = setMockServer(url, items, spy);
 
     var map_container = '<div id="map" style="height:300px; width:300px;"></div>';
     document.body.insertAdjacentHTML(
@@ -40,7 +45,8 @@ describe('MapboxSocket behavior', function () {
   it('should attach a Leaflet map to socket, then load history points and subscribe to new points', function (done) {
     var socket = new Socket(url);
     var map = L.mapbox.map('map', 'mapbox.pirates')
-      .setView([43.6, 3.91], 13);
+      .setView([43.6, 3.91], 11);
+    var expected_bounding_box = [3.8067626953124996, 43.52515287643569, 4.01275634765625, 43.67432820783561];
 
     socket.on('opened', function () {
       socket.attachMap(map);
@@ -48,7 +54,13 @@ describe('MapboxSocket behavior', function () {
 
     var timeout;
     function clear() { clearTimeout(timeout); }
-    socket.on('new_points', assertHistoryPoints(socket, done, clear));
+    function assert(points) {
+      return function () {
+        spy.should.have.been.calledWith(["bounding_box_initialized", expected_bounding_box]);
+        points.should.have.length(3);
+      }
+    }
+    socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
 
     socket.connect();
     timeout = setTimeout(function () {
@@ -69,7 +81,12 @@ describe('MapboxSocket behavior', function () {
       if (event_count++ < 2) {
         return;
       }
-      assertHistoryPoints(socket, done, clear, 2)(points);
+      function assert(points) {
+        return function () {
+          points.should.have.length(2);
+        }
+      }
+      assertHistoryPoints(socket, assert, done, clear)(points);
     });
 
     socket.on('opened', function () {
@@ -98,8 +115,13 @@ describe('MapboxSocket behavior', function () {
       socket.removeAllListeners('opened');
       socket.attachMap(map);
       socket.on('opened', function () {
-        socket.isOpened().should.be.true;
-        socket.on('new_points', assertHistoryPoints(socket, done, clear));
+        function assert(points) {
+          return function () {
+            points.should.have.length(3);
+            socket.isOpened().should.be.true;
+          }
+        }
+        socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
       });
 
       mock_server.close();
