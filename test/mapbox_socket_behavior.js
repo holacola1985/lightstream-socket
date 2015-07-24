@@ -73,6 +73,7 @@ describe('MapboxSocket behavior', function () {
     var socket = new Socket(url);
     var map = L.mapbox.map('map', 'mapbox.pirates')
       .setView([43.6, 3.91], 13);
+    var expected_bounding_box = [4.024257659912109, 43.65135445960513, 4.075756072998046, 43.68860475533579];
 
     var timeout;
     function clear() { clearTimeout(timeout); }
@@ -83,6 +84,7 @@ describe('MapboxSocket behavior', function () {
       }
       function assert(points) {
         return function () {
+          spy.should.have.been.calledWith(["bounding_box_changed", expected_bounding_box]);
           points.should.have.length(2);
         }
       }

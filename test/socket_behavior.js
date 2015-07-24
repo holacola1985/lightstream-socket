@@ -5,7 +5,6 @@
 
 var chai = require('chai');
 var should = chai.should();
-var expect = chai.expect;
 var sinon = require('sinon');
 var sinon_chai = require('sinon-chai');
 chai.use(sinon_chai);
@@ -18,7 +17,6 @@ var closeSocket = require('./socket_helper').closeSocket;
 var assertHistoryPoints = require('./socket_helper').assertHistoryPoints;
 
 var ConnectionError = require('../lib/ConnectionError');
-var BadFormatError = require('../lib/BadFormatError');
 var Socket = buildTestableSocket(require('../lib/Socket'));
 
 describe('Socket behavior', function () {
