@@ -23,7 +23,7 @@ L.mapbox.config.HTTPS_URL = 'https://api.tiles.mapbox.com/v4';
 
 describe('MapboxSocket behavior', function () {
   var url = 'ws://localhost/socket';
-  var mock_server, spy;
+  var mock_server, spy, type;
   var items = [{
     geojson: {coordinates: [3.97, 43.58]}
   }, {
@@ -33,6 +33,7 @@ describe('MapboxSocket behavior', function () {
   }];
 
   beforeEach(function () {
+    type = 'station';
     spy = sinon.spy();
     mock_server = setMockServer(url, items, spy);
 
@@ -43,7 +44,7 @@ describe('MapboxSocket behavior', function () {
   });
 
   it('should attach a Leaflet map to socket, then load history points and subscribe to new points', function (done) {
-    var socket = new Socket(url);
+    var socket = new Socket(url, type);
     var map = L.mapbox.map('map', 'mapbox.pirates')
       .setView([43.6, 3.91], 11);
     var expected_bounding_box = [3.8067626953124996, 43.52515287643569, 4.01275634765625, 43.67432820783561];
@@ -56,7 +57,7 @@ describe('MapboxSocket behavior', function () {
     function clear() { clearTimeout(timeout); }
     function assert(points) {
       return function () {
-        spy.should.have.been.calledWith(["bounding_box_initialized", expected_bounding_box]);
+        spy.should.have.been.calledWith(["bounding_box_initialized", expected_bounding_box, type]);
         points.should.have.length(3);
       }
     }
@@ -70,7 +71,7 @@ describe('MapboxSocket behavior', function () {
   });
 
   it('should reload all history points when map moves corresponding to the new bounds', function (done) {
-    var socket = new Socket(url);
+    var socket = new Socket(url, type);
     var map = L.mapbox.map('map', 'mapbox.pirates')
       .setView([43.6, 3.91], 13);
     var expected_bounding_box = [4.024257659912109, 43.65135445960513, 4.075756072998046, 43.68860475533579];
@@ -84,7 +85,7 @@ describe('MapboxSocket behavior', function () {
       }
       function assert(points) {
         return function () {
-          spy.should.have.been.calledWith(["bounding_box_changed", expected_bounding_box]);
+          spy.should.have.been.calledWith(["bounding_box_changed", expected_bounding_box, type]);
           points.should.have.length(2);
         }
       }
@@ -106,7 +107,7 @@ describe('MapboxSocket behavior', function () {
   it('should re attach the map if socket is closed by the server', function (done) {
     var retries = 2;
     var retry_interval = 200;
-    var socket = new Socket(url, retries, retry_interval);
+    var socket = new Socket(url, type, retries, retry_interval);
     var map = L.mapbox.map('map', 'mapbox.pirates')
       .setView([43.6, 3.91], 13);
 

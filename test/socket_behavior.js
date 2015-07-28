@@ -21,7 +21,7 @@ var Socket = buildTestableSocket(require('../lib/Socket'));
 
 describe('Socket behavior', function () {
   var url = 'ws://localhost/socket';
-  var mock_server, spy;
+  var mock_server, spy, type;
   var items = [{
     geojson: {coordinates: [3.97, 43.58]}
   }, {
@@ -31,7 +31,9 @@ describe('Socket behavior', function () {
   }];
 
   beforeEach(function () {
+    type = 'station';
     spy = sinon.spy();
+
     mock_server = setMockServer(url, items, spy);
     new MockServer(MockServer.unresolvableURL);
   });
@@ -39,7 +41,7 @@ describe('Socket behavior', function () {
   describe('Socket connect an reconnect', function () {
 
     it('should connect to websocket server', function (done) {
-      var socket = new Socket(url);
+      var socket = new Socket(url, type);
 
       var timeout;
       socket.on('opened', function () {
@@ -62,7 +64,7 @@ describe('Socket behavior', function () {
     it('should try to reconnect when first attempt fails', function (done) {
       var retries = 2;
       var retry_interval = 200;
-      var socket = new Socket(MockServer.unresolvableURL, retries, retry_interval);
+      var socket = new Socket(MockServer.unresolvableURL, type, retries, retry_interval);
 
       var timeout;
       socket.on('error', function () {
@@ -89,7 +91,7 @@ describe('Socket behavior', function () {
 
       var retries = 2;
       var retry_interval = 200;
-      var socket = new Socket(url, retries, retry_interval);
+      var socket = new Socket(url, type, retries, retry_interval);
 
       var timeout;
       socket.on('error', function () {
@@ -115,7 +117,7 @@ describe('Socket behavior', function () {
 
       var retries = Socket.INFINITE_RETRIES;
       var retry_interval = 80;
-      var socket = new Socket(url, retries, retry_interval);
+      var socket = new Socket(url, type, retries, retry_interval);
 
       var timeout;
       socket.on('error', function (error) {
@@ -139,7 +141,7 @@ describe('Socket behavior', function () {
     });
 
     it('should not try to reconnect if socket is closed by the client', function (done) {
-      var socket = new Socket(url);
+      var socket = new Socket(url, type);
 
       var timeout;
       socket.on('closed', function () {
@@ -164,7 +166,7 @@ describe('Socket behavior', function () {
     var bounding_box = [3.78, 43.55, 4.04, 43.65];
 
     it('should set a bounding box, then load history points and subscribe to new points', function (done) {
-      var socket = new Socket(url);
+      var socket = new Socket(url, type);
 
       socket.on('opened', function () {
         socket.setBoundingBox(bounding_box);
@@ -175,7 +177,7 @@ describe('Socket behavior', function () {
 
       function assert(points) {
         return function () {
-          spy.should.have.been.calledWith(["bounding_box_initialized", bounding_box]);
+          spy.should.have.been.calledWith(["bounding_box_initialized", bounding_box, 'station']);
           points.should.have.length(3);
         }
       }
@@ -192,7 +194,7 @@ describe('Socket behavior', function () {
     it('should re set the bounding box if socket is closed by the server', function (done) {
       var retries = 2;
       var retry_interval = 200;
-      var socket = new Socket(url, retries, retry_interval);
+      var socket = new Socket(url, type, retries, retry_interval);
 
       var timeout;
       function clear() { clearTimeout(timeout); }

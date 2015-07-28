@@ -36,5 +36,6 @@
     "phantomjs": "^1.9.17",
     "sinon": "^1.15.4",
     "sinon-chai": "^2.8.0"
-  }
+  },
+  "dependencies": {}
 }

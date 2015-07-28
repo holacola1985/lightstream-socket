@@ -8,8 +8,8 @@ window.WebSocket = MockSocket;
 
 //TODO: delete this method once hack used for mock-server is not needed anymore
 function buildTestableSocket(Socket) {
-  var TestableSocket = function (url, max_retries, retry_interval) {
-    Socket.call(this, url, max_retries, retry_interval);
+  var TestableSocket = function (url, type, max_retries, retry_interval) {
+    Socket.call(this, url, type, max_retries, retry_interval);
   };
 
   util.inherits(TestableSocket, Socket);
