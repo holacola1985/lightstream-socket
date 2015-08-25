@@ -57,7 +57,10 @@ describe('MapboxSocket behavior', function () {
     function clear() { clearTimeout(timeout); }
     function assert(points) {
       return function () {
-        spy.should.have.been.calledWith(["bounding_box_initialized", expected_bounding_box, type]);
+        spy.should.have.been.calledWith({
+          event:"bounding_box_initialized",
+          bounding_box: expected_bounding_box,
+          type: type});
         points.should.have.length(3);
       }
     }
@@ -85,7 +88,10 @@ describe('MapboxSocket behavior', function () {
       }
       function assert(points) {
         return function () {
-          spy.should.have.been.calledWith(["bounding_box_changed", expected_bounding_box, type]);
+          spy.should.have.been.calledWith({
+            event:"bounding_box_changed",
+            bounding_box: expected_bounding_box,
+            type: type});
           points.should.have.length(2);
         }
       }

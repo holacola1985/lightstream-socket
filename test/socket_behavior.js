@@ -169,7 +169,7 @@ describe('Socket behavior', function () {
       var socket = new Socket(url, type);
 
       socket.on('opened', function () {
-        socket.setBoundingBox(bounding_box);
+        socket.initializeBoundingBox(bounding_box);
       });
 
       var timeout;
@@ -177,7 +177,10 @@ describe('Socket behavior', function () {
 
       function assert(points) {
         return function () {
-          spy.should.have.been.calledWith(["bounding_box_initialized", bounding_box, 'station']);
+          spy.should.have.been.calledWithMatch({
+            event:"bounding_box_initialized",
+            bounding_box: bounding_box,
+            type: 'station'});
           points.should.have.length(3);
         }
       }
@@ -201,7 +204,7 @@ describe('Socket behavior', function () {
 
       socket.on('opened', function () {
         socket.removeAllListeners('opened');
-        socket.setBoundingBox(bounding_box);
+        socket.initializeBoundingBox(bounding_box);
 
         socket.on('opened', function () {
           function assert(points) {

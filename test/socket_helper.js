@@ -30,7 +30,7 @@ function setMockServer(url, items, spy) {
       var points = items;
       data = JSON.parse(data);
       spy(data);
-      if (data[0] == 'bounding_box_changed') {
+      if (data.event == 'bounding_box_changed') {
         points = items.slice(0, -1);
       }
       console.log('sending ' + points.length + ' points for : ' + data[0]);
