@@ -162,68 +162,94 @@ describe('Socket behavior', function () {
     });
   });
 
-  describe('Set Bounding Box', function () {
-    var bounding_box = [3.78, 43.55, 4.04, 43.65];
+  function test_socket_initialization(initialize_socket, event, bounding_box, done) {
+    var socket = new Socket(url, type);
+    socket.on('opened', function () {
+      initialize_socket(socket);
+    });
 
-    it('should set a bounding box, then load history points and subscribe to new points', function (done) {
-      var socket = new Socket(url, type);
+    var timeout;
+    function clear() { clearTimeout(timeout); }
+
+    function assert(points) {
+      return function () {
+        spy.should.have.been.calledWithMatch({
+          event: event,
+          bounding_box: bounding_box,
+          type: 'station'});
+        points.should.have.length(3);
+      }
+    }
+
+    socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
+
+    socket.connect();
+    timeout = setTimeout(function () {
+      closeSocket(socket);
+      done(new Error('new_points event should have been called for ' + event + ' event'));
+    }, 100);
+  }
+
+  function test_socket_reconnection(initialize_socket, done) {
+    var retries = 2;
+    var retry_interval = 200;
+    var socket = new Socket(url, type, retries, retry_interval);
+
+    var timeout;
+    function clear() { clearTimeout(timeout); }
+
+    socket.on('opened', function () {
+      socket.removeAllListeners('opened');
+      initialize_socket(socket);
 
       socket.on('opened', function () {
-        socket.initializeBoundingBox(bounding_box);
+        function assert(points) {
+          return function () {
+            points.should.have.length(3);
+          }
+        }
+
+        socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
       });
 
-      var timeout;
-      function clear() { clearTimeout(timeout); }
+      mock_server.close();
+    });
 
-      function assert(points) {
-        return function () {
-          spy.should.have.been.calledWithMatch({
-            event:"bounding_box_initialized",
-            bounding_box: bounding_box,
-            type: 'station'});
-          points.should.have.length(3);
-        }
-      }
+    socket.connect();
+    timeout = setTimeout(function () {
+      closeSocket(socket);
+      done(new Error('new_points event should have been called after reconnect'));
+    }, 500);
+  }
 
-      socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
+  describe('Listen socket', function () {
+    var initialize_socket = function (socket) {
+      socket.listen();
+    };
 
-      socket.connect();
-      timeout = setTimeout(function () {
-        closeSocket(socket);
-        done(new Error('new_points event should have been called for bounding box initialized'));
-      }, 100);
+    it('should listen to new points', function (done) {
+      var bounding_box; // should be undefined
+
+      test_socket_initialization(initialize_socket, "ready", bounding_box, done);
+    });
+
+    it('should listen again if socket is closed by the server', function (done) {
+      test_socket_reconnection(initialize_socket, done);
+    });
+  });
+
+  describe('Set Bounding Box', function () {
+    var bounding_box = [3.78, 43.55, 4.04, 43.65];
+    var initialize_socket = function (socket) {
+      socket.initializeBoundingBox(bounding_box);
+    };
+
+    it('should set a bounding box, then load history points and subscribe to new points', function (done) {
+      test_socket_initialization(initialize_socket, "bounding_box_initialized", bounding_box, done);
     });
 
     it('should re set the bounding box if socket is closed by the server', function (done) {
-      var retries = 2;
-      var retry_interval = 200;
-      var socket = new Socket(url, type, retries, retry_interval);
-
-      var timeout;
-      function clear() { clearTimeout(timeout); }
-
-      socket.on('opened', function () {
-        socket.removeAllListeners('opened');
-        socket.initializeBoundingBox(bounding_box);
-
-        socket.on('opened', function () {
-          function assert(points) {
-            return function () {
-              points.should.have.length(3);
-            }
-          }
-
-          socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
-        });
-
-        mock_server.close();
-      });
-
-      socket.connect();
-      timeout = setTimeout(function () {
-        closeSocket(socket);
-        done(new Error('new_points event should have been called'));
-      }, 500);
+      test_socket_reconnection(initialize_socket, done);
     });
   });
 });
