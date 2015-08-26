@@ -14,7 +14,7 @@ var assertAsync = require('./test_helper').assertAsync;
 var buildTestableSocket = require('./socket_helper').buildTestableSocket;
 var setMockServer = require('./socket_helper').setMockServer;
 var closeSocket = require('./socket_helper').closeSocket;
-var assertHistoryPoints = require('./socket_helper').assertHistoryPoints;
+var assertHistoryItems = require('./socket_helper').assertHistoryItems;
 
 var ConnectionError = require('../lib/ConnectionError');
 var Socket = buildTestableSocket(require('../lib/Socket'));
@@ -171,22 +171,22 @@ describe('Socket behavior', function () {
     var timeout;
     function clear() { clearTimeout(timeout); }
 
-    function assert(points) {
+    function assert(items) {
       return function () {
         spy.should.have.been.calledWithMatch({
           event: event,
           bounding_box: bounding_box,
           type: 'station'});
-        points.should.have.length(3);
+        items.should.have.length(3);
       }
     }
 
-    socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
+    socket.on('new_items', assertHistoryItems(socket, assert, done, clear));
 
     socket.connect();
     timeout = setTimeout(function () {
       closeSocket(socket);
-      done(new Error('new_points event should have been called for ' + event + ' event'));
+      done(new Error('new_items event should have been called for ' + event + ' event'));
     }, 100);
   }
 
@@ -203,13 +203,13 @@ describe('Socket behavior', function () {
       initialize_socket(socket);
 
       socket.on('opened', function () {
-        function assert(points) {
+        function assert(items) {
           return function () {
-            points.should.have.length(3);
+            items.should.have.length(3);
           }
         }
 
-        socket.on('new_points', assertHistoryPoints(socket, assert, done, clear));
+        socket.on('new_items', assertHistoryItems(socket, assert, done, clear));
       });
 
       mock_server.close();
@@ -218,7 +218,7 @@ describe('Socket behavior', function () {
     socket.connect();
     timeout = setTimeout(function () {
       closeSocket(socket);
-      done(new Error('new_points event should have been called after reconnect'));
+      done(new Error('new_items event should have been called after reconnect'));
     }, 500);
   }
 
@@ -227,7 +227,7 @@ describe('Socket behavior', function () {
       socket.listen();
     };
 
-    it('should listen to new points', function (done) {
+    it('should listen to new items', function (done) {
       var bounding_box; // should be undefined
 
       test_socket_initialization(initialize_socket, "ready", bounding_box, done);
@@ -244,7 +244,7 @@ describe('Socket behavior', function () {
       socket.initializeBoundingBox(bounding_box);
     };
 
-    it('should set a bounding box, then load history points and subscribe to new points', function (done) {
+    it('should set a bounding box, then load history items and subscribe to new items', function (done) {
       test_socket_initialization(initialize_socket, "bounding_box_initialized", bounding_box, done);
     });
 

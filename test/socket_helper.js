@@ -27,14 +27,14 @@ function setMockServer(url, items, spy) {
   var mock_server = new MockServer(url);
   mock_server.on('connection', function (server) {
     server.on('message', function (data) {
-      var points = items;
+      var items_to_send = items;
       data = JSON.parse(data);
       spy(data);
       if (data.event == 'bounding_box_changed') {
-        points = items.slice(0, -1);
+        items_to_send = items.slice(0, -1);
       }
-      console.log('sending ' + points.length + ' points for : ' + data[0]);
-      server.send(JSON.stringify(points));
+      console.log('sending ' + items_to_send.length + ' items for : ' + data.event);
+      server.send(JSON.stringify(items_to_send));
     });
   });
 
@@ -42,11 +42,11 @@ function setMockServer(url, items, spy) {
 }
 
 function closeSocket(socket) {
-  socket.removeAllListeners('new_points');
+  socket.removeAllListeners('new_items');
   socket.close();
 }
 
-function assertHistoryPoints(socket, assert, done, clear) {
+function assertHistoryItems(socket, assert, done, clear) {
   return function assertions(points) {
     clear();
     assertAsync(assert(points), done);
@@ -58,5 +58,5 @@ module.exports = {
   buildTestableSocket: buildTestableSocket,
   setMockServer: setMockServer,
   closeSocket: closeSocket,
-  assertHistoryPoints: assertHistoryPoints
+  assertHistoryItems: assertHistoryItems
 };
