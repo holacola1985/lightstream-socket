@@ -2,6 +2,7 @@
 "use strict";
 
 var util = require('util');
+var _ = require('lodash');
 var assertAsync = require('./test_helper').assertAsync;
 require('mock-socket');
 window.WebSocket = MockSocket;
@@ -30,10 +31,13 @@ function setMockServer(url, items, spy) {
       var items_to_send = items;
       data = JSON.parse(data);
       spy(data);
-      if (data.event == 'bounding_box_changed') {
-        items_to_send = items.slice(0, -1);
+      if (data.event === 'bounding_box_changed') {
+        items_to_send = items_to_send.slice(0, -1);
       }
-      console.log('sending ' + items_to_send.length + ' items for : ' + data.event);
+      if (data.filter) {
+        items_to_send = _.where(items_to_send, { data: data.filter });
+      }
+      console.log('mock server sending ' + items_to_send.length + ' items for : ' + data.event);
       server.send(JSON.stringify(items_to_send));
     });
   });
@@ -47,9 +51,9 @@ function closeSocket(socket) {
 }
 
 function assertHistoryItems(socket, assert, done, clear) {
-  return function assertions(points) {
+  return function assertions(items) {
     clear();
-    assertAsync(assert(points), done);
+    assertAsync(assert(items), done);
     closeSocket(socket);
   };
 }

@@ -37,5 +37,7 @@
     "sinon": "^1.15.4",
     "sinon-chai": "^2.8.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "lodash": "^3.10.1"
+  }
 }
