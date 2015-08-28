@@ -111,9 +111,11 @@ describe('MapboxSocket behavior', function () {
   });
 
   it('should re attach the map if socket is closed by the server', function (done) {
-    var retries = 2;
-    var retry_interval = 200;
-    var socket = new Socket(url, type, retries, retry_interval);
+    var options = {
+      max_retries: 2,
+      retry_interval: 200
+    };
+    var socket = new Socket(url, type, options);
     var map = L.mapbox.map('map', 'mapbox.pirates')
       .setView([43.6, 3.91], 13);
 

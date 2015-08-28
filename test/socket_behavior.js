@@ -38,7 +38,7 @@ describe('Socket behavior', function () {
     new MockServer(MockServer.unresolvableURL);
   });
 
-  describe('Socket connect an reconnect', function () {
+  describe('Socket connect and reconnect', function () {
 
     it('should connect to websocket server', function (done) {
       var socket = new Socket(url, type);
@@ -62,9 +62,11 @@ describe('Socket behavior', function () {
     });
 
     it('should try to reconnect when first attempt fails', function (done) {
-      var retries = 2;
-      var retry_interval = 200;
-      var socket = new Socket(MockServer.unresolvableURL, type, retries, retry_interval);
+      var options = {
+        max_retries: 2,
+        retry_interval: 200
+      };
+      var socket = new Socket(MockServer.unresolvableURL, type, options);
 
       var timeout;
       socket.on('error', function () {
@@ -89,9 +91,11 @@ describe('Socket behavior', function () {
         }, 20);
       });
 
-      var retries = 2;
-      var retry_interval = 200;
-      var socket = new Socket(url, type, retries, retry_interval);
+      var options = {
+        max_retries: 2,
+        retry_interval: 200
+      };
+      var socket = new Socket(url, type, options);
 
       var timeout;
       socket.on('error', function () {
@@ -115,9 +119,11 @@ describe('Socket behavior', function () {
         }, 20);
       });
 
-      var retries = Socket.INFINITE_RETRIES;
-      var retry_interval = 80;
-      var socket = new Socket(url, type, retries, retry_interval);
+      var options = {
+        max_retries: Socket.INFINITE_RETRIES,
+        retry_interval: 80
+      };
+      var socket = new Socket(url, type, options);
 
       var timeout;
       socket.on('error', function (error) {
@@ -191,9 +197,11 @@ describe('Socket behavior', function () {
   }
 
   function test_socket_reconnection(initialize_socket, done) {
-    var retries = 2;
-    var retry_interval = 200;
-    var socket = new Socket(url, type, retries, retry_interval);
+    var options = {
+      max_retries: 2,
+      retry_interval: 200
+    };
+    var socket = new Socket(url, type, options);
 
     var timeout;
     function clear() { clearTimeout(timeout); }
