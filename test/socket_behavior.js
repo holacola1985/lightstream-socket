@@ -92,35 +92,6 @@ describe('Socket behavior', function () {
       }, 500);
     });
 
-    it('should try to reconnect if socket is closed by the server', function (done) {
-      mock_server.on('connection', function () {
-        setTimeout(function () {
-          mock_server.close();
-        }, 20);
-      });
-
-      var options = {
-        max_retries: 2,
-        retry_interval: 200
-      };
-      var socket = new Socket(url, type, options);
-
-      var timeout;
-      socket.on('error', function () {
-        clearTimeout(timeout);
-        function assert() {
-          socket.isOpened().should.be.false;
-        }
-
-        assertAsync(assert, done);
-      });
-
-      socket.connect();
-      timeout = setTimeout(function () {
-        done(new Error('error event should have been called'));
-      }, 550);
-    });
-
     it('should try to reconnect infinitely when socket is closed by the server, unless abort has been called', function (done) {
       mock_server.on('connection', function () {
         setTimeout(function () {
@@ -223,6 +194,7 @@ describe('Socket behavior', function () {
       initialize_socket(socket);
 
       socket.on('opened', function () {
+        socket.retries_done.should.equal(0);
         function assert(items) {
           return function () {
             items.should.have.length(items_count);
