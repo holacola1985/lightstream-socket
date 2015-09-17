@@ -15,6 +15,13 @@ function buildTestableSocket(Socket) {
 
   util.inherits(TestableSocket, Socket);
 
+  TestableSocket.prototype._listenSocket = function _listenSocket() {
+    // hack to avoid calls to previous onmessage handler, because of the implementation in mock-socket,
+    // which does not replace handler, but add it as a new observer.
+    this.socket.service.list['clientOnMessage'] = [];
+    Socket.prototype._listenSocket.call(this);
+  };
+
   TestableSocket.prototype._close = function _close() {
     // hack to avoid calls to previous onclose handler, because of the implementation in mock-socket,
     // which does not replace handler, but add it as a new observer.
@@ -24,21 +31,27 @@ function buildTestableSocket(Socket) {
   return TestableSocket;
 }
 
+function filterItems(items, data) {
+  var items_to_send = items;
+  if (data.event === 'bounding_box_changed') {
+    items_to_send = items_to_send.slice(0, -1);
+  }
+  if (data.filter) {
+    items_to_send = _.where(items_to_send, {data: data.filter});
+  }
+  console.log('mock server sending ' + items_to_send.length + ' items for : ' + data.event);
+  return items_to_send;
+}
+
 function setMockServer(url, items, spy) {
   var mock_server = new MockServer(url);
   mock_server.on('connection', function (server) {
     server.on('message', function (data) {
-      var items_to_send = items;
       data = JSON.parse(data);
       spy(data);
-      if (data.event === 'bounding_box_changed') {
-        items_to_send = items_to_send.slice(0, -1);
-      }
-      if (data.filter) {
-        items_to_send = _.where(items_to_send, { data: data.filter });
-      }
-      console.log('mock server sending ' + items_to_send.length + ' items for : ' + data.event);
-      server.send(JSON.stringify(items_to_send));
+      filterItems(items, data).forEach(function (item) {
+        server.send(JSON.stringify(item));
+      });
     });
   });
 
@@ -50,17 +63,8 @@ function closeSocket(socket) {
   socket.close();
 }
 
-function assertHistoryItems(socket, assert, done, clear) {
-  return function assertions(items) {
-    clear();
-    assertAsync(assert(items), done);
-    closeSocket(socket);
-  };
-}
-
 module.exports = {
   buildTestableSocket: buildTestableSocket,
   setMockServer: setMockServer,
-  closeSocket: closeSocket,
-  assertHistoryItems: assertHistoryItems
+  closeSocket: closeSocket
 };

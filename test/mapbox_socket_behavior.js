@@ -12,7 +12,7 @@ chai.use(sinon_chai);
 var buildTestableSocket = require('./socket_helper').buildTestableSocket;
 var setMockServer = require('./socket_helper').setMockServer;
 var closeSocket = require('./socket_helper').closeSocket;
-var assertHistoryItems = require('./socket_helper').assertHistoryItems;
+var assertAsync = require('./test_helper').assertAsync;
 
 var Socket = buildTestableSocket(require('../lib/MapboxSocket'));
 
@@ -53,23 +53,22 @@ describe('MapboxSocket behavior', function () {
       socket.attachMap(map);
     });
 
-    var timeout;
-    function clear() { clearTimeout(timeout); }
-    function assert(items) {
-      return function () {
-        spy.should.have.been.calledWith({
-          event:"bounding_box_initialized",
-          bounding_box: expected_bounding_box,
-          type: type});
-        items.should.have.length(3);
-      }
+    var new_items_spy = sinon.spy();
+    socket.on('new_items', new_items_spy);
+
+    function assert() {
+      spy.should.have.been.calledWith({
+        event:"bounding_box_initialized",
+        bounding_box: expected_bounding_box,
+        type: type});
+      new_items_spy.should.have.been.called;
+      new_items_spy.callCount.should.equal(3);
+      closeSocket(socket);
     }
-    socket.on('new_items', assertHistoryItems(socket, assert, done, clear));
 
     socket.connect();
-    timeout = setTimeout(function () {
-      closeSocket(socket);
-      done(new Error('new_items event should have been called for bounding box initialized'));
+    setTimeout(function () {
+      assertAsync(assert, done);
     }, 30);
   });
 
@@ -79,24 +78,9 @@ describe('MapboxSocket behavior', function () {
       .setView([43.6, 3.91], 13);
     var expected_bounding_box = [4.024257659912109, 43.65135445960513, 4.075756072998046, 43.68860475533579];
 
-    var timeout;
-    function clear() { clearTimeout(timeout); }
-    var event_count = 1; // 1st occurrence : bounding_box_initialized, 2nd: bounding_box_changed
-    socket.on('new_items', function (items) {
-      if (event_count++ < 2) {
-        return;
-      }
-      function assert(items) {
-        return function () {
-          spy.should.have.been.calledWith({
-            event:"bounding_box_changed",
-            bounding_box: expected_bounding_box,
-            type: type});
-          items.should.have.length(2);
-        }
-      }
-      assertHistoryItems(socket, assert, done, clear)(items);
-    });
+    var new_items_spy = sinon.spy();
+
+    socket.on('new_items', new_items_spy);
 
     socket.on('opened', function () {
       socket.attachMap(map);
@@ -104,45 +88,55 @@ describe('MapboxSocket behavior', function () {
     });
 
     socket.connect();
-    timeout = setTimeout(function () {
+
+    function assert() {
+      spy.should.have.been.calledWith({
+        event:"bounding_box_changed",
+        bounding_box: expected_bounding_box,
+        type: type});
+      new_items_spy.should.have.been.called;
+      new_items_spy.callCount.should.equal(3 + 2); // 3 for bounding_box_initialized and 2 for bounding_box_changed
       closeSocket(socket);
-      done(new Error('new_items event should have been called for bounding box changed'));
-    }, 500);
+    }
+
+    setTimeout(function () {
+      assertAsync(assert, done);
+    }, 150);
   });
 
   it('should re attach the map if socket is closed by the server', function (done) {
     var options = {
       max_retries: 2,
-      retry_interval: 200
+      retry_interval: 100
     };
     var socket = new Socket(url, type, options);
     var map = L.mapbox.map('map', 'mapbox.pirates')
       .setView([43.6, 3.91], 13);
 
-    var timeout;
-    function clear() { clearTimeout(timeout); }
+    var new_items_spy = sinon.spy();
 
     socket.on('opened', function closeServer() {
       socket.removeAllListeners('opened');
       socket.attachMap(map);
       socket.on('opened', function () {
-        function assert(items) {
-          return function () {
-            items.should.have.length(3);
-            socket.isOpened().should.be.true;
-          }
-        }
-        socket.on('new_items', assertHistoryItems(socket, assert, done, clear));
+        socket.on('new_items', new_items_spy);
       });
 
       mock_server.close();
     });
 
     socket.connect();
-    timeout = setTimeout(function () {
+
+    function assert() {
+      new_items_spy.should.have.been.called;
+      new_items_spy.callCount.should.equal(3);
+      socket.isOpened().should.be.true;
       closeSocket(socket);
-      done(new Error('new_items event should have been called'));
-    }, 500);
+    }
+
+    setTimeout(function () {
+      assertAsync(assert, done);
+    }, 250);
   });
 
   afterEach(function () {

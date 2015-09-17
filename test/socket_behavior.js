@@ -15,7 +15,6 @@ var assertAsync = require('./test_helper').assertAsync;
 var buildTestableSocket = require('./socket_helper').buildTestableSocket;
 var setMockServer = require('./socket_helper').setMockServer;
 var closeSocket = require('./socket_helper').closeSocket;
-var assertHistoryItems = require('./socket_helper').assertHistoryItems;
 
 var ConnectionError = require('../lib/ConnectionError');
 var Socket = buildTestableSocket(require('../lib/Socket'));
@@ -155,39 +154,30 @@ describe('Socket behavior', function () {
       initialize_socket(socket);
     });
 
-    var timeout;
-    function clear() { clearTimeout(timeout); }
-
-    function assert(items) {
-      return function () {
-        spy.should.have.been.calledWithMatch({
-          event: event,
-          bounding_box: bounding_box,
-          filter: filter,
-          type: 'station'
-        });
-        items.should.have.length(items_count);
-      }
-    }
-
-    socket.on('new_items', assertHistoryItems(socket, assert, done, clear));
+    var new_items_spy = sinon.spy();
+    socket.on('new_items', new_items_spy);
 
     socket.connect();
-    timeout = setTimeout(function () {
+
+    var assert = function () {
+      new_items_spy.should.have.been.called;
+      new_items_spy.callCount.should.equal(items_count);
       closeSocket(socket);
-      done(new Error('new_items event should have been called for ' + event + ' event'));
-    }, 100);
+    };
+
+    setTimeout(function () {
+      assertAsync(assert, done);
+    }, 50);
   }
 
   function test_socket_reconnection(initialize_socket, items_count, done) {
     options = _.assign({
       max_retries: 2,
-      retry_interval: 200
+      retry_interval: 100
     }, options);
     var socket = new Socket(url, type, options);
 
-    var timeout;
-    function clear() { clearTimeout(timeout); }
+    var new_items_spy = sinon.spy();
 
     socket.on('opened', function () {
       socket.removeAllListeners('opened');
@@ -195,23 +185,23 @@ describe('Socket behavior', function () {
 
       socket.on('opened', function () {
         socket.retries_done.should.equal(0);
-        function assert(items) {
-          return function () {
-            items.should.have.length(items_count);
-          }
-        }
-
-        socket.on('new_items', assertHistoryItems(socket, assert, done, clear));
+        socket.on('new_items', new_items_spy);
       });
 
       mock_server.close();
     });
 
-    socket.connect();
-    timeout = setTimeout(function () {
+    function assert() {
+      new_items_spy.should.have.been.called;
+      new_items_spy.callCount.should.equal(items_count);
       closeSocket(socket);
-      done(new Error('new_items event should have been called after reconnect'));
-    }, 500);
+    }
+
+    socket.connect();
+
+    setTimeout(function () {
+      assertAsync(assert, done);
+    }, 250);
   }
 
   describe('Listen socket', function () {
@@ -266,31 +256,31 @@ describe('Socket behavior', function () {
         initialize_socket(socket);
       });
 
-      function assert(items) {
-        return function () {
-          spy.should.have.been.calledWithMatch({
-            event: 'filter_changed',
-            filter: filter,
-            type: 'station'
-          });
-          items.should.have.length(2);
-        }
-      }
-
-      var timeout;
-      function clear() { clearTimeout(timeout); }
+      var new_items_spy = sinon.spy();
 
       socket.on('new_items', function () {
         filter = { linked_item: 34 };
 
         socket.removeAllListeners('new_items');
-        socket.on('new_items', assertHistoryItems(socket, assert, done, clear));
+        socket.on('new_items', new_items_spy);
         socket.changeFilter(filter);
       });
 
       socket.connect();
-      timeout = setTimeout(function () {
+
+      function assert() {
+        spy.should.have.been.calledWithMatch({
+          event: 'filter_changed',
+          filter: filter,
+          type: 'station'
+        });
+        new_items_spy.should.have.been.called;
+        new_items_spy.callCount.should.equal(2);
         closeSocket(socket);
+      }
+
+      setTimeout(function () {
+        assertAsync(assert, done);
         done(new Error('new_items event should have been called for filter changed event'));
       }, 100);
     });
