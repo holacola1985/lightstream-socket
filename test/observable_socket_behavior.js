@@ -9,9 +9,8 @@ var should = chai.should();
 var assertAsync = require('./test_helper').assertAsync;
 var buildTestableSocket = require('./socket_helper').buildTestableSocket;
 var setMockServer = require('./socket_helper').setMockServer;
-var closeSocket = require('./socket_helper').closeSocket;
 
-var ObservableSocket = buildTestableSocket(require('../lib/ObservableSocket'));
+var ObservableSocket = buildTestableSocket(require('../lib/ObservableSocket')());
 
 describe('ObservableSocket behavior', function () {
   var url = 'ws://localhost/socket';
@@ -33,7 +32,7 @@ describe('ObservableSocket behavior', function () {
     new MockServer(MockServer.unresolvableURL);
   });
 
-  it.only('should stream items through an observable', function (done) {
+  it('should stream items through an observable', function (done) {
     var socket = new ObservableSocket(url, type);
 
     socket.on('opened', function () {
