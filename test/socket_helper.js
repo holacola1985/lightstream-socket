@@ -48,7 +48,9 @@ function setMockServer(url, items, spy) {
   mock_server.on('connection', function (server) {
     server.on('message', function (data) {
       data = JSON.parse(data);
-      spy(data);
+      if (spy) {
+        spy(data);
+      }
       filterItems(items, data).forEach(function (item) {
         server.send(JSON.stringify(item));
       });
