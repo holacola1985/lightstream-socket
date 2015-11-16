@@ -1,6 +1,6 @@
 {
   "name": "lightstream-socket",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "client library to connect to lightstream-server",
   "main": "index.js",
   "scripts": {
