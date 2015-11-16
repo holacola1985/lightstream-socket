@@ -5,6 +5,7 @@
 
 var chai = require('chai');
 var expect = chai.expect;
+var should = chai.should();
 
 var BoundingBox = require('../lib/BoundingBox');
 var BadFormatError = require('../lib/BadFormatError');
@@ -41,41 +42,37 @@ describe('Bounding Box behavior', function () {
   it('longitude should be less than 180', function () {
     var bounding_box = new BoundingBox([188.0, -53.0, 231.0, 44.5]);
 
-    expect(function () {
-      bounding_box.check();
-    }).to.throw(BadFormatError)
-      .and.have.property('message')
-      .which.match(/SWLon(.*)at most 180(.*)\n(.*)NELon(.*)at most 180/g);
+    var formatted_bounding_box = bounding_box.check();
+
+    formatted_bounding_box[0].should.equal(180);
+    formatted_bounding_box[2].should.equal(180);
   });
 
   it('longitude should be greater than -180', function () {
     var bounding_box = new BoundingBox([-231.0, -53.0, -188.0, 44.5]);
 
-    expect(function () {
-      bounding_box.check();
-    }).to.throw(BadFormatError)
-      .and.have.property('message')
-      .which.match(/SWLon(.*)at least -180(.*)\n(.*)NELon(.*)at least -180/g);
+    var formatted_bounding_box = bounding_box.check();
+
+    formatted_bounding_box[0].should.equal(-180);
+    formatted_bounding_box[2].should.equal(-180);
   });
 
   it('latitude should be less than 90', function () {
     var bounding_box = new BoundingBox([21.0, 95.0, 88.0, 105.0]);
 
-    expect(function () {
-      bounding_box.check();
-    }).to.throw(BadFormatError)
-      .and.have.property('message')
-      .which.match(/SWLat(.*)at most 90(.*)\n(.*)NELat(.*)at most 90/g);
+    var formatted_bounding_box = bounding_box.check();
+
+    formatted_bounding_box[1].should.equal(90);
+    formatted_bounding_box[3].should.equal(90);
   });
 
   it('latitude should be greater than -90', function () {
     var bounding_box = new BoundingBox([21.0, -105.0, 88.0, -95.0]);
 
-    expect(function () {
-      bounding_box.check();
-    }).to.throw(BadFormatError)
-      .and.have.property('message')
-      .which.match(/SWLat(.*)at least -90(.*)\n(.*)NELat(.*)at least -90/g);
+    var formatted_bounding_box = bounding_box.check();
+
+    formatted_bounding_box[1].should.equal(-90);
+    formatted_bounding_box[3].should.equal(-90);
   });
 
   it('North East latitude should be greater than South West latitude', function () {
