@@ -51,7 +51,7 @@ describe('Socket behavior', function () {
       var socket = new Socket(url, type);
 
       var timeout;
-      socket.on('opened', function () {
+      socket.once('opened', function () {
         clearTimeout(timeout);
         function assert() {
           socket.isOpened().should.be.true;
@@ -76,7 +76,7 @@ describe('Socket behavior', function () {
       var socket = new Socket(MockServer.unresolvableURL, type, options);
 
       var timeout;
-      socket.on('error', function () {
+      socket.once('error', function () {
         clearTimeout(timeout);
         function assert() {
           socket.isOpened().should.be.false;
@@ -105,7 +105,7 @@ describe('Socket behavior', function () {
       var socket = new Socket(url, type, options);
 
       var timeout;
-      socket.on('error', function (error) {
+      socket.once('error', function (error) {
         clearTimeout(timeout);
         function assert() {
           socket.isOpened().should.be.false;
@@ -129,7 +129,7 @@ describe('Socket behavior', function () {
       var socket = new Socket(url, type);
 
       var timeout;
-      socket.on('closed', function () {
+      socket.once('closed', function () {
         clearTimeout(timeout);
         function assert() {
           socket.isOpened().should.be.false;
@@ -137,7 +137,7 @@ describe('Socket behavior', function () {
 
         assertAsync(assert, done);
       });
-      socket.on('opened', function () {
+      socket.once('opened', function () {
         socket.close();
       });
 
@@ -150,7 +150,7 @@ describe('Socket behavior', function () {
 
   function test_socket_initialization(initialize_socket, event, items_count, done) {
     var socket = new Socket(url, type, options);
-    socket.on('opened', function () {
+    socket.once('opened', function () {
       initialize_socket(socket);
     });
 
@@ -179,11 +179,10 @@ describe('Socket behavior', function () {
 
     var new_items_spy = sinon.spy();
 
-    socket.on('opened', function () {
-      socket.removeAllListeners('opened');
+    socket.once('opened', function () {
       initialize_socket(socket);
 
-      socket.on('opened', function () {
+      socket.once('opened', function () {
         socket.retries_done.should.equal(0);
         socket.on('new_items', new_items_spy);
       });
@@ -194,6 +193,42 @@ describe('Socket behavior', function () {
     function assert() {
       new_items_spy.should.have.been.called;
       new_items_spy.callCount.should.equal(items_count);
+      closeSocket(socket);
+    }
+
+    socket.connect();
+
+    setTimeout(function () {
+      assertAsync(assert, done);
+    }, 250);
+  }
+
+  function test_socket_reinit_is_a_no_op(initialize_socket, done) {
+    options = _.assign({
+      max_retries: 2,
+      retry_interval: 100
+    }, options);
+    var socket = new Socket(url, type, options);
+
+    var new_items_spy = sinon.spy();
+
+    socket.once('opened', function () {
+      initialize_socket(socket);
+
+      socket.once('opened', function () {
+        socket.once('new_items', function callback() { // sent after connection reset
+          setTimeout(function () { // wait for the items sent after reset to be received
+            socket.once('new_items', new_items_spy);
+            initialize_socket(socket);
+          }, 20);
+        });
+      });
+
+      mock_server.close();
+    });
+
+    function assert() {
+      new_items_spy.should.not.have.been.called;
       closeSocket(socket);
     }
 
@@ -234,6 +269,10 @@ describe('Socket behavior', function () {
     it('should re set the bounding box if socket is closed by the server', function (done) {
       test_socket_reconnection(initialize_socket, 3, done);
     });
+
+    it('explicitly re setting the bounding box should be a no op', function (done) {
+      test_socket_reinit_is_a_no_op(initialize_socket, done);
+    });
   });
 
   describe('Set filter', function () {
@@ -258,10 +297,9 @@ describe('Socket behavior', function () {
 
       var new_items_spy = sinon.spy();
 
-      socket.on('new_items', function () {
+      socket.once('new_items', function () {
         filter = { linked_item: 34 };
 
-        socket.removeAllListeners('new_items');
         socket.on('new_items', new_items_spy);
         socket.changeFilter(filter);
       });
@@ -283,6 +321,10 @@ describe('Socket behavior', function () {
         assertAsync(assert, done);
         done(new Error('new_items event should have been called for filter changed event'));
       }, 100);
+    });
+
+    it('explicitly re listening should be a no op', function (done) {
+      test_socket_reinit_is_a_no_op(initialize_socket, done);
     });
   });
 });
