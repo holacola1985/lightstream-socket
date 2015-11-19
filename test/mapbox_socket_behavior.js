@@ -49,7 +49,7 @@ describe('MapboxSocket behavior', function () {
       .setView([43.6, 3.91], 11);
     var expected_bounding_box = [3.8067626953124996, 43.52515287643569, 4.01275634765625, 43.67432820783561];
 
-    socket.on('opened', function () {
+    socket.once('opened', function () {
       socket.attachMap(map);
     });
 
@@ -82,7 +82,7 @@ describe('MapboxSocket behavior', function () {
 
     socket.on('new_items', new_items_spy);
 
-    socket.on('opened', function () {
+    socket.once('opened', function () {
       socket.attachMap(map);
       map.setView([43.67, 4.05], 13);
     });
@@ -115,10 +115,9 @@ describe('MapboxSocket behavior', function () {
 
     var new_items_spy = sinon.spy();
 
-    socket.on('opened', function closeServer() {
-      socket.removeAllListeners('opened');
+    socket.once('opened', function closeServer() {
       socket.attachMap(map);
-      socket.on('opened', function () {
+      socket.once('opened', function () {
         socket.on('new_items', new_items_spy);
       });
 
@@ -131,6 +130,44 @@ describe('MapboxSocket behavior', function () {
       new_items_spy.should.have.been.called;
       new_items_spy.callCount.should.equal(3);
       socket.isOpened().should.be.true;
+      closeSocket(socket);
+    }
+
+    setTimeout(function () {
+      assertAsync(assert, done);
+    }, 250);
+  });
+
+  it('explicitly re attaching the map should be a no op', function (done) {
+    var options = {
+      max_retries: 2,
+      retry_interval: 100
+    };
+    var socket = new Socket(url, type, options);
+    var map = L.mapbox.map('map', 'mapbox.pirates')
+      .setView([43.6, 3.91], 13);
+
+    var new_items_spy = sinon.spy();
+
+    socket.once('opened', function closeServer() {
+      socket.attachMap(map);
+
+      socket.once('opened', function () { // after server close
+        socket.once('new_items', function callback() { // sent after connection reset
+          setTimeout(function () { // wait for the items sent after reset to be received
+            socket.once('new_items', new_items_spy);
+            socket.attachMap(map);
+          }, 20);
+        });
+      });
+
+      mock_server.close();
+    });
+
+    socket.connect();
+
+    function assert() {
+      new_items_spy.should.not.have.been.called;
       closeSocket(socket);
     }
 
