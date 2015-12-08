@@ -39,6 +39,9 @@ function filterItems(items, data) {
   if (data.filter) {
     items_to_send = _.where(items_to_send, {data: data.filter});
   }
+  if (data.stream) {
+    items_to_send = [items_to_send[0]];
+  }
   console.log('mock server sending ' + items_to_send.length + ' items for : ' + data.event);
   return items_to_send;
 }

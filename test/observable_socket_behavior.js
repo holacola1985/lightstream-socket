@@ -43,6 +43,7 @@ describe('ObservableSocket behavior', function () {
           function assert() {
             count.should.equal(3);
           }
+
           assertAsync(assert, done);
         }, done);
 
@@ -50,7 +51,7 @@ describe('ObservableSocket behavior', function () {
     });
 
     socket.connect();
-    setTimeout(function () {
+    setTimeout(function close() {
       socket.close();
     }, 50);
   });

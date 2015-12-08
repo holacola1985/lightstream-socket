@@ -327,4 +327,32 @@ describe('Socket behavior', function () {
       test_socket_reinit_is_a_no_op(initialize_socket, done);
     });
   });
+
+  describe('multi stream', function () {
+
+    beforeEach(function () {
+      options.stream = 'test-stream';
+    });
+
+    it.only('should send stream to socket', function (done) {
+      var socket = new Socket(url, type, options);
+      socket.once('opened', function () {
+        socket.listen();
+      });
+
+      var new_items_spy = sinon.spy();
+      socket.on('new_items', new_items_spy);
+
+      socket.connect();
+
+      var assert = function () {
+        new_items_spy.should.have.been.calledOnce;
+        closeSocket(socket);
+      };
+
+      setTimeout(function () {
+        assertAsync(assert, done);
+      }, 50);
+    });
+  });
 });
